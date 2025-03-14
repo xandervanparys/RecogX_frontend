@@ -32,6 +32,7 @@ export default function InstructionTab() {
   const [instructionSteps, setInstructionSteps] = useState<InstructionStep[]>([{ id: "step-1", text: "" }])
   const [isTaskSubmitted, setIsTaskSubmitted] = useState(false)
   const [isSubmittingTask, setIsSubmittingTask] = useState(false)
+  const baseURL = "https://api.web-present.be"
 
   // Webcam states
   const [isWebcamActive, setIsWebcamActive] = useState(false)
@@ -49,12 +50,16 @@ export default function InstructionTab() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({})
 
+
   // Reset everything
   const resetEverything = async () => {
     try {
       // Call the reset endpoint
-      const response = await fetch("https://api.webpresent.be/reset/", {
+      const response = await fetch(`${baseURL}/instruction/reset/`, {
         method: "POST",
+        headers: {
+          accept: "application/json",
+        }
       })
 
       if (!response.ok) {
@@ -125,57 +130,54 @@ export default function InstructionTab() {
 
   // Submit the complete task instructions
   const submitTaskInstructions = async () => {
-    // Validate inputs
     if (!taskTitle.trim()) {
-      setError("Please provide a task title")
-      return
+      setError("Please provide a task title");
+      return;
     }
-
+  
     if (instructionSteps.some((step) => !step.text.trim())) {
-      setError("All instruction steps must have text")
-      return
+      setError("All instruction steps must have text");
+      return;
     }
-
-    setIsSubmittingTask(true)
-    setError(null)
-    setSuccess(null)
-
+  
+    setIsSubmittingTask(true);
+    setError(null);
+    setSuccess(null);
+  
     try {
-      // Create form data with all instructions and images
-      const formData = new FormData()
-      formData.append("title", taskTitle)
-
-      // Add each step as a separate field
+      const formData = new FormData();
+      formData.append("user_id", "12345"); // Replace with actual user ID
+      formData.append("task_title", taskTitle);
+  
+      // Append instructions as an array (FastAPI expects `instructions[]`)
+      instructionSteps.forEach((step) => {
+        formData.append("instructions", step.text);
+      });
+  
+      // Append images if they exist
       for (let i = 0; i < instructionSteps.length; i++) {
-        const step = instructionSteps[i]
-        formData.append(`step_${i + 1}`, step.text)
-
-        // Add image if present
+        const step = instructionSteps[i];
         if (step.image) {
-          // Convert base64 to blob
-          const fetchResponse = await fetch(step.image)
-          const imageBlob = await fetchResponse.blob()
-          formData.append(`step_${i + 1}_image`, imageBlob, `step_${i + 1}_image.jpg`)
+          const fetchResponse = await fetch(step.image);
+          const imageBlob = await fetchResponse.blob();
+          formData.append(`images`, imageBlob, `step_${i + 1}_image.jpg`);
         }
       }
-
+  
       // Send to backend
-      const response = await fetch("https://api.webpresent.be/instruction/setup/", {
+      const response = await fetch(`${baseURL}/instruction/setup/`, {
         method: "POST",
         body: formData,
-      })
-
+      });
+  
       if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}`)
+        throw new Error(`Server responded with ${response.status}`);
       }
-
-      // Handle response
-      const data = await response.json()
-
-      setIsTaskSubmitted(true)
-      setSuccess("Task instructions submitted successfully! You can now use the webcam.")
-
-      // Add the initial response if provided
+  
+      const data = await response.json();
+      setIsTaskSubmitted(true);
+      setSuccess("Task instructions submitted successfully!");
+  
       if (data.message) {
         setResponses([
           {
@@ -183,15 +185,16 @@ export default function InstructionTab() {
             timestamp: new Date().toLocaleTimeString(),
             text: data.message,
           },
-        ])
+        ]);
       }
     } catch (err) {
-      console.error("Error submitting task instructions:", err)
-      setError("Failed to submit task instructions. Please try again.")
+      console.error("Error submitting task instructions:", err);
+      setError("Failed to submit task instructions. Please try again.");
     } finally {
-      setIsSubmittingTask(false)
+      setIsSubmittingTask(false);
     }
-  }
+  };
+  
 
   // Start webcam
   const startWebcam = async () => {
@@ -229,82 +232,76 @@ export default function InstructionTab() {
   // Capture and send image
   const captureAndSendImage = async () => {
     if (!videoRef.current || !canvasRef.current) {
-      setError("Webcam is not active")
-      return
+      setError("Webcam is not active");
+      return;
     }
-
-    setIsCapturing(true)
-    setError(null)
-
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    const context = canvas.getContext("2d")
-
+  
+    setIsCapturing(true);
+    setError(null);
+  
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext("2d");
+  
     if (!context) {
-      setError("Could not access canvas context.")
-      setIsCapturing(false)
-      return
+      setError("Could not access canvas context.");
+      setIsCapturing(false);
+      return;
     }
-
+  
     // Set canvas dimensions to match video
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+  
     // Draw current video frame to canvas
-    context.drawImage(video, 0, 0, canvas.width, canvas.height)
-
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  
     try {
       // Convert canvas to blob
       const blob = await new Promise<Blob>((resolve) => {
         canvas.toBlob(
           (blob) => {
-            if (blob) resolve(blob)
+            if (blob) resolve(blob);
           },
           "image/jpeg",
-          0.9,
-        )
-      })
-
+          0.9
+        );
+      });
+  
       // Create form data
-      const formData = new FormData()
-      formData.append("file", blob, "webcam-frame.jpg")
-
+      const formData = new FormData();
+      formData.append("user_id", "12345"); // Replace with actual user ID
+      formData.append("frame", blob, "webcam-frame.jpg");
+  
       // Send to backend
-      const response = await fetch("https://api.webpresent.be/instruction/instruction/", {
+      const response = await fetch(`${baseURL}/instruction/track/`, {
         method: "POST",
         body: formData,
-      })
-
+      });
+  
       if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}`)
+        throw new Error(`Server responded with ${response.status}`);
       }
-
+  
       // Handle response
-      const data = await response.json()
-
+      const data = await response.json();
+  
       // Create a new response entry
-      const newResponse: ResponseItem = {
+      const newResponse = {
         id: `response-${Date.now()}`,
         timestamp: new Date().toLocaleTimeString(),
-      }
-
-      if (data.result) {
-        newResponse.text = data.result
-      }
-
-      if (data.image_url) {
-        newResponse.image = data.image_url
-      }
-
-      // Add to responses (at the beginning for reverse chronological order)
-      setResponses((prev) => [newResponse, ...prev])
+        text: data.response || "No response received",
+      };
+  
+      setResponses((prev) => [newResponse, ...prev]);
     } catch (err) {
-      console.error("Error sending image:", err)
-      setError("Failed to send image. Please try again.")
+      console.error("Error sending image:", err);
+      setError("Failed to send image. Please try again.");
     } finally {
-      setIsCapturing(false)
+      setIsCapturing(false);
     }
-  }
+  };
+  
 
   return (
     <div className="space-y-6">
@@ -409,7 +406,9 @@ export default function InstructionTab() {
                       id={`image-${step.id}`}
                       className="hidden"
                       onChange={(e) => handleImageUpload(step.id, e)}
-                      ref={(el) => (fileInputRefs.current[step.id] = el)}
+                      ref={(el) => {
+                        fileInputRefs.current[step.id] = el
+                      }}
                     />
                     <Button
                       variant="outline"
