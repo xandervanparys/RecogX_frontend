@@ -6,9 +6,8 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Plus, X, Send } from "lucide-react"
+import { Plus, X, Send, ChevronDown, ChevronUp } from "lucide-react"
 
-// Define types for our tasks
 interface Task {
   id: string
   title: string
@@ -26,9 +25,10 @@ export default function InstructionTab() {
   const [instructionSteps, setInstructionSteps] = useState<InstructionStep[]>([{ id: "step-1", text: "" }])
   const [tasks, setTasks] = useState<Task[]>([])
   const [isSubmittingTask, setIsSubmittingTask] = useState(false)
+  const [isTasksOpen, setIsTasksOpen] = useState(false) // Controls collapsible section
   const baseURL = "https://api.web-present.be"
 
-  // Fetch predefined tasks from the backend
+  // Fetch predefined tasks from backend
   useEffect(() => {
     const fetchTasks = async () => {
       try {
@@ -105,22 +105,35 @@ export default function InstructionTab() {
 
   return (
     <div className="space-y-6">
-      {/* Predefined Task Selection */}
+      {/* Predefined Tasks - Collapsible Section */}
       <Card className="p-6">
-        <h2 className="text-2xl font-bold mb-4">Predefined Tasks</h2>
-        <ScrollArea className="h-[200px] pr-4">
-          {tasks.length > 0 ? (
-            <div className="space-y-3">
-              {tasks.map((task) => (
-                <Button key={task.id} className="w-full" onClick={() => loadTask(task)}>
-                  {task.title}
-                </Button>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground">No predefined tasks available.</p>
-          )}
-        </ScrollArea>
+        <div
+          className="flex justify-between items-center cursor-pointer"
+          onClick={() => setIsTasksOpen(!isTasksOpen)}
+        >
+          <h2 className="text-2xl font-bold">Predefined Tasks</h2>
+          {isTasksOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+        </div>
+
+        {isTasksOpen && (
+          <ScrollArea className="h-[200px] mt-4">
+            {tasks.length > 0 ? (
+              <div className="grid grid-cols-6 gap-2">
+                {tasks.map((task) => (
+                  <Button
+                    key={task.id}
+                    className="w-full p-2 text-sm font-medium text-center h-14 flex items-center justify-center"
+                    onClick={() => loadTask(task)}
+                  >
+                    {task.title}
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground mt-2">No predefined tasks available.</p>
+            )}
+          </ScrollArea>
+        )}
       </Card>
 
       {/* Task Setup */}
