@@ -50,6 +50,7 @@ export default function InstructionTab() {
 
   // Webcam states
   const [isWebcamActive, setIsWebcamActive] = useState(false)
+  const [useFrontCamera, setUseFrontCamera] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false)
 
   // Response states (for tracking feedback from webcam submissions)
@@ -193,6 +194,7 @@ export default function InstructionTab() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
+          facingMode: useFrontCamera ? "user" : "environment",
           width: { ideal: 640 },
           height: { ideal: 480 },
         },
@@ -215,6 +217,13 @@ export default function InstructionTab() {
       setIsWebcamActive(false)
     }
   }
+
+  // Toggle Camera Button
+  const toggleCamera = () => {
+    setUseFrontCamera((prev) => !prev);
+    stopWebcam(); // Stop current stream
+    setTimeout(startWebcam, 500); // Restart with new camera
+  };
 
   // Capture and send image for instruction tracking
   const captureAndSendImage = async () => {
@@ -353,6 +362,10 @@ export default function InstructionTab() {
                   <Button onClick={stopWebcam} variant="outline" className="flex items-center gap-2">
                     Stop Webcam
                   </Button>
+                  <Button onClick={toggleCamera} variant="outline" className="flex items-center gap-2">
+                    Switch Camera
+                  </Button>
+
                 </div>
               )}
             </div>
