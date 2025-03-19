@@ -1,12 +1,23 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Plus, X, Send, ChevronDown, ChevronUp, Save, Trash2 } from "lucide-react"
+import {
+  Plus,
+  X,
+  Send,
+  ChevronDown,
+  ChevronUp,
+  Save,
+  Trash2,
+  Camera,
+  CameraIcon,
+  RotateCcw
+} from "lucide-react"
 
 interface Task {
   id: string
@@ -20,6 +31,13 @@ interface InstructionStep {
   image?: string
 }
 
+interface ResponseItem {
+  id: string
+  timestamp: string
+  text?: string
+  image?: string
+}
+
 export default function InstructionTab() {
   const [taskTitle, setTaskTitle] = useState("")
   const [instructionSteps, setInstructionSteps] = useState<InstructionStep[]>([{ id: "step-1", text: "" }])
@@ -27,7 +45,23 @@ export default function InstructionTab() {
   const [isSubmittingTask, setIsSubmittingTask] = useState(false)
   const [isSavingTask, setIsSavingTask] = useState(false)
   const [isTasksOpen, setIsTasksOpen] = useState(false)
+  const [isTaskSubmitted, setIsTaskSubmitted] = useState(false)
   const baseURL = "https://api.web-present.be"
+
+  // Webcam states
+  const [isWebcamActive, setIsWebcamActive] = useState(false)
+  const [isCapturing, setIsCapturing] = useState(false)
+
+  // Response states (for tracking feedback from webcam submissions)
+  const [responses, setResponses] = useState<ResponseItem[]>([])
+
+  // Error and success states
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+
+  // Refs for webcam and canvas
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   // Fetch all tasks from backend
   useEffect(() => {
@@ -44,13 +78,13 @@ export default function InstructionTab() {
     fetchTasks()
   }, [])
 
-  // Load a predefined or saved task
+  // Load a saved task into the creation fields
   const loadTask = (task: Task) => {
     setTaskTitle(task.title)
     setInstructionSteps(task.steps.map((step, index) => ({ id: `step-${index + 1}`, text: step })))
   }
 
-  // Save a task
+  // Save a task (user-created) to backend
   const saveTask = async () => {
     if (!taskTitle.trim()) {
       alert("Please provide a task title")
@@ -62,7 +96,6 @@ export default function InstructionTab() {
     }
 
     setIsSavingTask(true)
-
     try {
       const formData = new FormData()
       formData.append("task_title", taskTitle)
@@ -72,9 +105,7 @@ export default function InstructionTab() {
         method: "POST",
         body: formData,
       })
-
       if (!response.ok) throw new Error("Failed to save task")
-
       alert("Task saved successfully!")
 
       // Refresh tasks list
@@ -96,7 +127,6 @@ export default function InstructionTab() {
     try {
       const response = await fetch(`${baseURL}/instruction/tasks/${taskId}`, { method: "DELETE" })
       if (!response.ok) throw new Error("Failed to delete task")
-
       // Remove from frontend
       setTasks(tasks.filter((task) => task.id !== taskId))
     } catch (err) {
@@ -105,7 +135,7 @@ export default function InstructionTab() {
     }
   }
 
-  // Add a new step
+  // Manually add a new instruction step
   const addInstructionStep = () => {
     setInstructionSteps([...instructionSteps, { id: `step-${instructionSteps.length + 1}`, text: "" }])
   }
@@ -121,7 +151,7 @@ export default function InstructionTab() {
     setInstructionSteps(instructionSteps.map((step) => (step.id === id ? { ...step, text } : step)))
   }
 
-  // Submit task to backend for execution tracking
+  // Submit task instructions (for tracking)
   const submitTaskInstructions = async () => {
     if (!taskTitle.trim()) {
       alert("Please provide a task title")
@@ -133,10 +163,9 @@ export default function InstructionTab() {
     }
 
     setIsSubmittingTask(true)
-
     try {
       const formData = new FormData()
-      formData.append("user_id", "12345")
+      formData.append("user_id", "12345") // Replace with actual user ID
       formData.append("task_title", taskTitle)
       instructionSteps.forEach((step) => formData.append("instructions", step.text))
 
@@ -148,6 +177,7 @@ export default function InstructionTab() {
       if (!response.ok) throw new Error(`Server responded with ${response.status}`)
 
       alert("Task instructions submitted successfully!")
+      setIsTaskSubmitted(true)
     } catch (err) {
       console.error("Error submitting task instructions:", err)
       alert("Failed to submit task instructions. Please try again.")
@@ -156,15 +186,86 @@ export default function InstructionTab() {
     }
   }
 
+  // Webcam Functions
+
+  // Start webcam
+  const startWebcam = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
+      })
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        setIsWebcamActive(true)
+      }
+    } catch (err) {
+      setError("Could not access webcam. Please check permissions.")
+    }
+  }
+
+  // Stop webcam
+  const stopWebcam = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream
+      stream.getTracks().forEach((track) => track.stop())
+      videoRef.current.srcObject = null
+      setIsWebcamActive(false)
+    }
+  }
+
+  // Capture and send image for instruction tracking
+  const captureAndSendImage = async () => {
+    if (!videoRef.current || !canvasRef.current) {
+      setError("Webcam is not active")
+      return
+    }
+
+    setIsCapturing(true)
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    const context = canvas.getContext("2d")
+    if (!context) {
+      setError("Could not access canvas context")
+      setIsCapturing(false)
+      return
+    }
+
+    // Draw current video frame on canvas
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+    try {
+      const blob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob((blob) => blob && resolve(blob), "image/jpeg", 0.9)
+      })
+
+      const formData = new FormData()
+      formData.append("user_id", "12345")
+      formData.append("frame", blob, "webcam-frame.jpg")
+
+      const response = await fetch(`${baseURL}/instruction/track/`, { method: "POST", body: formData })
+      if (!response.ok) throw new Error(`Server responded with ${response.status}`)
+      const data = await response.json()
+      setResponses([{ id: `response-${Date.now()}`, timestamp: new Date().toLocaleTimeString(), text: data.response }, ...responses])
+    } catch (err) {
+      setError("Failed to send image. Please try again.")
+    } finally {
+      setIsCapturing(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
-      {/* Predefined Tasks - Collapsible Section */}
+      {/* Saved Tasks - Collapsible Section */}
       <Card className="p-6">
         <div className="flex justify-between items-center cursor-pointer" onClick={() => setIsTasksOpen(!isTasksOpen)}>
           <h2 className="text-2xl font-bold">Predefined & Saved Tasks</h2>
           {isTasksOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
         </div>
-
         {isTasksOpen && (
           <ScrollArea className="h-[200px] mt-4">
             {tasks.length > 0 ? (
@@ -172,14 +273,14 @@ export default function InstructionTab() {
                 {tasks.map((task) => (
                   <div key={task.id} className="relative group">
                     <Button
-                      className="w-full p-2 text-sm font-medium text-center h-12 flex items-center justify-center"
+                      className="w-full p-2 text-xs font-medium text-center h-12 flex items-center justify-center"
                       onClick={() => loadTask(task)}
                     >
                       {task.title}
                     </Button>
                     <button
                       onClick={() => deleteTask(task.id)}
-                      className="absolute right-1 top-3 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute right-1 top-1 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <Trash2 className="h-4 w-4 text-red-500" />
                     </button>
@@ -193,12 +294,15 @@ export default function InstructionTab() {
         )}
       </Card>
 
-      {/* Task Setup */}
+      {/* New Task Creation Section */}
       <Card className="p-6">
         <h2 className="text-2xl font-bold mb-4">Create or Edit Task</h2>
-
-        <Input placeholder="Enter task title" value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} className="w-full mb-6" />
-
+        <Input
+          placeholder="Enter task title"
+          value={taskTitle}
+          onChange={(e) => setTaskTitle(e.target.value)}
+          className="w-full mb-6"
+        />
         {instructionSteps.map((step, index) => (
           <div key={step.id} className="p-4 border rounded-lg mb-4">
             <div className="flex justify-between items-center mb-2">
@@ -207,22 +311,62 @@ export default function InstructionTab() {
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <Textarea value={step.text} onChange={(e) => updateStepText(step.id, e.target.value)} />
+            <Textarea
+              value={step.text}
+              onChange={(e) => updateStepText(step.id, e.target.value)}
+            />
           </div>
         ))}
-
         <Button onClick={addInstructionStep} className="w-full mb-4">
           <Plus className="h-4 w-4" /> Add Another Step
         </Button>
-
-        <Button onClick={saveTask} disabled={isSavingTask} className="w-full mb-4">
-          <Save className="h-4 w-4" /> {isSavingTask ? "Saving..." : "Save Task"}
-        </Button>
-
-        <Button onClick={submitTaskInstructions} disabled={isSubmittingTask} className="w-full">
-          <Send className="h-4 w-4" /> {isSubmittingTask ? "Submitting..." : "Submit Task"}
-        </Button>
+        <div className="flex flex-col gap-2">
+          <Button onClick={saveTask} disabled={isSavingTask} className="w-full">
+            <Save className="h-4 w-4" /> {isSavingTask ? "Saving..." : "Save Task"}
+          </Button>
+          <Button onClick={submitTaskInstructions} disabled={isSubmittingTask} className="w-full">
+            <Send className="h-4 w-4" /> {isSubmittingTask ? "Submitting..." : "Submit Task"}
+          </Button>
+        </div>
       </Card>
+
+      {/* Webcam Section - Only show if task submitted */}
+      {isTaskSubmitted && (
+        <div className="space-y-6">
+          {/* Webcam Controls */}
+          <Card className="p-6">
+            <h2 className="text-2xl font-bold mb-4">Task Execution</h2>
+            <div className="flex justify-between items-center">
+              {!isWebcamActive ? (
+                <Button onClick={startWebcam} className="flex items-center gap-2">
+                  <Camera className="h-4 w-4" /> Start Webcam
+                </Button>
+              ) : (
+                <div className="space-x-2">
+                  <Button onClick={captureAndSendImage} disabled={isCapturing} className="flex items-center gap-2">
+                    <CameraIcon className="h-4 w-4" /> {isCapturing ? "Processing..." : "Capture & Send"}
+                  </Button>
+                  <Button onClick={stopWebcam} variant="outline" className="flex items-center gap-2">
+                    Stop Webcam
+                  </Button>
+                </div>
+              )}
+            </div>
+            <video ref={videoRef} autoPlay playsInline muted className="w-full h-auto mt-4 rounded-md border" />
+          </Card>
+
+          {/* Response Section */}
+          <Card className="p-6">
+            <h2 className="text-2xl font-bold mb-4">Responses</h2>
+            <ScrollArea className="h-[500px] pr-4">
+              {responses.map((response) => (
+                <div key={response.id} className="p-4 border rounded-lg mb-2">{response.text}</div>
+              ))}
+            </ScrollArea>
+          </Card>
+        </div>
+      )}
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   )
 }
