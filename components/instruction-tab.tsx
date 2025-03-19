@@ -45,7 +45,7 @@ export default function InstructionTab() {
   const [isSubmittingTask, setIsSubmittingTask] = useState(false)
   const [isSavingTask, setIsSavingTask] = useState(false)
   const [isTasksOpen, setIsTasksOpen] = useState(false)
-  const [isTaskSubmitted, setIsTaskSubmitted] = useState(true)
+  const [isTaskSubmitted, setIsTaskSubmitted] = useState(false)
   const baseURL = "https://api.web-present.be"
 
   // Webcam states
