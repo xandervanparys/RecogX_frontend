@@ -45,7 +45,7 @@ export default function InstructionTab() {
   const [isSubmittingTask, setIsSubmittingTask] = useState(false)
   const [isSavingTask, setIsSavingTask] = useState(false)
   const [isTasksOpen, setIsTasksOpen] = useState(false)
-  const [isTaskSubmitted, setIsTaskSubmitted] = useState(false)
+  const [isTaskSubmitted, setIsTaskSubmitted] = useState(true)
   const baseURL = "https://api.web-present.be"
 
   // Webcam states
@@ -266,14 +266,18 @@ export default function InstructionTab() {
           <h2 className="text-2xl font-bold">Predefined & Saved Tasks</h2>
           {isTasksOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
         </div>
+
         {isTasksOpen && (
-          <ScrollArea className="h-[200px] mt-4">
+          <ScrollArea
+            className={`mt-4 transition-all duration-300 ease-in-out ${tasks.length > 6 ? "h-auto max-h-[300px]" : `h-[${Math.ceil(tasks.length / 6) * 50}px]`
+              }`}
+          >
             {tasks.length > 0 ? (
               <div className="grid grid-cols-6 gap-2">
                 {tasks.map((task) => (
                   <div key={task.id} className="relative group">
                     <Button
-                      className="w-full p-2 text-xs font-medium text-center h-12 flex items-center justify-center"
+                      className="w-full p-2 text-sm text-center h-12 flex items-center justify-center"
                       onClick={() => loadTask(task)}
                     >
                       {task.title}
@@ -293,6 +297,7 @@ export default function InstructionTab() {
           </ScrollArea>
         )}
       </Card>
+
 
       {/* New Task Creation Section */}
       <Card className="p-6">
@@ -332,9 +337,8 @@ export default function InstructionTab() {
 
       {/* Webcam Section - Only show if task submitted */}
       {isTaskSubmitted && (
-        <div className="space-y-6">
-          {/* Webcam Controls */}
-          <Card className="p-6">
+        <div className="flex space-x-6 h-screen overflow-hidden">
+          <Card className="p-6 w-2/3 flex flex-col h-full">
             <h2 className="text-2xl font-bold mb-4">Task Execution</h2>
             <div className="flex justify-between items-center">
               {!isWebcamActive ? (
@@ -342,7 +346,7 @@ export default function InstructionTab() {
                   <Camera className="h-4 w-4" /> Start Webcam
                 </Button>
               ) : (
-                <div className="space-x-2">
+                <div className="flex space-x-2">
                   <Button onClick={captureAndSendImage} disabled={isCapturing} className="flex items-center gap-2">
                     <CameraIcon className="h-4 w-4" /> {isCapturing ? "Processing..." : "Capture & Send"}
                   </Button>
@@ -352,16 +356,26 @@ export default function InstructionTab() {
                 </div>
               )}
             </div>
-            <video ref={videoRef} autoPlay playsInline muted className="w-full h-auto mt-4 rounded-md border" />
+
+            {/* Webcam Feed - Scaled Properly */}
+            <div className="flex-grow flex items-center justify-center">
+              <div className="w-full h-auto aspect-video  rounded-md border overflow-hidden">
+                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+              </div>
+            </div>
           </Card>
 
-          {/* Response Section */}
-          <Card className="p-6">
+          {/* Response Section (1/3 width) */}
+          <Card className="p-6 w-1/3 flex flex-col h-full">
             <h2 className="text-2xl font-bold mb-4">Responses</h2>
-            <ScrollArea className="h-[500px] pr-4">
-              {responses.map((response) => (
-                <div key={response.id} className="p-4 border rounded-lg mb-2">{response.text}</div>
-              ))}
+            <ScrollArea className="flex-grow pr-4">
+              {responses.length > 0 ? (
+                responses.map((response) => (
+                  <div key={response.id} className="p-4 border rounded-lg mb-2">{response.text}</div>
+                ))
+              ) : (
+                <p className="text-muted-foreground">No responses yet.</p>
+              )}
             </ScrollArea>
           </Card>
         </div>
