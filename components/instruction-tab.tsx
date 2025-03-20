@@ -221,8 +221,8 @@ export default function InstructionTab() {
   // Toggle Camera Button
   const toggleCamera = () => {
     setUseFrontCamera((prev) => !prev);
-    stopWebcam(); // Stop current stream
-    setTimeout(startWebcam, 500); // Restart with new camera
+    stopWebcam();
+    setTimeout(startWebcam, 200);
   };
 
   // Capture and send image for instruction tracking
@@ -269,7 +269,7 @@ export default function InstructionTab() {
 
   return (
     <div className="space-y-6">
-      {/* Saved Tasks - Collapsible Section */}
+      {/* Saved Tasks */}
       <Card className="p-6">
         <div className="flex justify-between items-center cursor-pointer" onClick={() => setIsTasksOpen(!isTasksOpen)}>
           <h2 className="text-2xl font-bold">Predefined & Saved Tasks</h2>
@@ -341,10 +341,10 @@ export default function InstructionTab() {
         </div>
       </Card>
 
-      {/* Webcam Section - Only show if task submitted */}
+      {/* Webcam Section */}
       {isTaskSubmitted && (
         <div className="flex flex-col md:flex-row space-y-4 md:space-x-6 h-screen overflow-hidden">
-          {/* Webcam Controls - Stacks on mobile, side-by-side on desktop */}
+          {/* Webcam Controls */}
           <Card className="p-6 w-full md:w-2/3 flex flex-col h-full">
             <h2 className="text-2xl font-bold mb-4">Task Execution</h2>
             <div className="flex flex-col md:flex-row md:justify-between items-center space-y-2 md:space-y-0">
@@ -367,7 +367,7 @@ export default function InstructionTab() {
               )}
             </div>
 
-            {/* Webcam Feed - Scales Properly */}
+            {/* Webcam Feed */}
             <div className="flex-grow flex items-center justify-center">
               <div className="w-full h-auto aspect-video bg-black rounded-md border overflow-hidden">
                 <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
@@ -375,7 +375,7 @@ export default function InstructionTab() {
             </div>
           </Card>
 
-          {/* Response Section - Stacks below webcam on mobile */}
+          {/* Response Section */}
           <Card className="p-6 w-full md:w-1/3 flex flex-col h-full">
             <h2 className="text-2xl font-bold mb-4">Responses</h2>
             <ScrollArea className="flex-grow pr-4">
