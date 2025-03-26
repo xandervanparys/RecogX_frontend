@@ -164,6 +164,7 @@ export default function InstructionTab() {
     }
 
     setIsSubmittingTask(true)
+    const startTime = performance.now();
     try {
       const formData = new FormData()
       formData.append("user_id", "12345") // Replace with actual user ID
@@ -176,6 +177,13 @@ export default function InstructionTab() {
       })
 
       if (!response.ok) throw new Error(`Server responded with ${response.status}`)
+      const endTime = performance.now();
+      const frontendDuration = endTime - startTime;
+      const data = await response.json();
+      if (data.open_ai_time) {
+        console.log(`📤 Instruction submission OpenAI time: ${(data.open_ai_time * 1000).toFixed(2)}ms`);
+        console.log(`⏱️ Round-trip time: ${frontendDuration.toFixed(2)}ms, OpenAI time (backend): ${(data.open_ai_time * 1000).toFixed(2)}ms`);
+      }
 
       alert("Task instructions submitted successfully!")
       setIsTaskSubmitted(true)
@@ -247,6 +255,7 @@ export default function InstructionTab() {
     canvas.height = video.videoHeight
     context.drawImage(video, 0, 0, canvas.width, canvas.height)
 
+    const startTime = performance.now();
     try {
       const blob = await new Promise<Blob>((resolve) => {
         canvas.toBlob((blob) => blob && resolve(blob), "image/jpeg", 0.9)
@@ -255,10 +264,13 @@ export default function InstructionTab() {
       const formData = new FormData()
       formData.append("user_id", "12345")
       formData.append("frame", blob, "webcam-frame.jpg")
-
+      
       const response = await fetch(`${baseURL}/instruction/track/`, { method: "POST", body: formData })
       if (!response.ok) throw new Error(`Server responded with ${response.status}`)
-      const data = await response.json()
+      const endTime = performance.now();
+      const frontendDuration = endTime - startTime;
+      const data = await response.json();
+      console.log(`⏱️ Round-trip time: ${frontendDuration.toFixed(2)}ms, OpenAI time (backend): ${(data.open_ai_time * 1000).toFixed(2)}ms`);
       setResponses([{ id: `response-${Date.now()}`, timestamp: new Date().toLocaleTimeString(), text: data.response }, ...responses])
     } catch (err) {
       setError("Failed to send image. Please try again.")
