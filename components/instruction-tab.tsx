@@ -48,10 +48,21 @@ export default function InstructionTab() {
   const [isTaskSubmitted, setIsTaskSubmitted] = useState(false)
   const baseURL = "https://api.web-present.be"
 
+  // Helper function to get or create user ID
+  const getOrCreateUserId = () => {
+    let id = localStorage.getItem("user_id")
+    if (!id) {
+      id = crypto.randomUUID()
+      localStorage.setItem("user_id", id)
+    }
+    return id
+  }
+
   // Webcam states
   const [isWebcamActive, setIsWebcamActive] = useState(false)
   const [useFrontCamera, setUseFrontCamera] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false)
+  const webcamSettings = {width: 1280, height: 960}
 
   // Response states (for tracking feedback from webcam submissions)
   const [responses, setResponses] = useState<ResponseItem[]>([])
@@ -167,7 +178,7 @@ export default function InstructionTab() {
     const startTime = performance.now();
     try {
       const formData = new FormData()
-      formData.append("user_id", "12345") // Replace with actual user ID
+      formData.append("user_id", getOrCreateUserId()) // Replace with actual user ID
       formData.append("task_title", taskTitle)
       instructionSteps.forEach((step) => formData.append("instructions", step.text))
 
@@ -203,8 +214,8 @@ export default function InstructionTab() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: useFrontCamera ? "user" : "environment",
-          width: { ideal: 640 },
-          height: { ideal: 480 },
+          width: { ideal: webcamSettings.width },
+          height: { ideal: webcamSettings.height },
         },
       })
       if (videoRef.current) {
@@ -262,7 +273,7 @@ export default function InstructionTab() {
       })
 
       const formData = new FormData()
-      formData.append("user_id", "12345")
+      formData.append("user_id", getOrCreateUserId())
       formData.append("frame", blob, "webcam-frame.jpg")
       
       const response = await fetch(`${baseURL}/instruction/track/`, { method: "POST", body: formData })
