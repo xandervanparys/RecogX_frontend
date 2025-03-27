@@ -295,7 +295,7 @@ export default function InstructionTab() {
       {/* Saved Tasks */}
       <Card className="p-6">
         <div className="flex justify-between items-center cursor-pointer" onClick={() => setIsTasksOpen(!isTasksOpen)}>
-          <h2 className="text-2xl font-bold">Predefined & Saved Tasks</h2>
+          <h2 className="text-2xl font-bold">Saved Tasks</h2>
           {isTasksOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
         </div>
 
