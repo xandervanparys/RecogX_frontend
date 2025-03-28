@@ -62,7 +62,7 @@ export default function InstructionTab() {
   const [isWebcamActive, setIsWebcamActive] = useState(false)
   const [useFrontCamera, setUseFrontCamera] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false)
-  const webcamSettings = {width: 1280, height: 960}
+  const webcamSettings = {width: 640, height: 480}
 
   // Response states (for tracking feedback from webcam submissions)
   const [responses, setResponses] = useState<ResponseItem[]>([])
