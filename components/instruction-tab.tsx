@@ -46,6 +46,7 @@ export default function InstructionTab() {
   const [isSavingTask, setIsSavingTask] = useState(false)
   const [isTasksOpen, setIsTasksOpen] = useState(false)
   const [isTaskSubmitted, setIsTaskSubmitted] = useState(false)
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const baseURL = "https://api.web-present.be"
 
   // Helper function to get or create user ID
@@ -94,6 +95,7 @@ export default function InstructionTab() {
   const loadTask = (task: Task) => {
     setTaskTitle(task.title)
     setInstructionSteps(task.steps.map((step, index) => ({ id: `step-${index + 1}`, text: step })))
+    setSelectedTaskId(task.id)
   }
 
   // Save a task (user-created) to backend
@@ -123,6 +125,7 @@ export default function InstructionTab() {
       // Refresh tasks list
       const updatedTasks = await fetch(`${baseURL}/instruction/tasks/`).then((res) => res.json())
       setTasks(updatedTasks)
+      setSelectedTaskId(null)
     } catch (err) {
       console.error("Error saving task:", err)
       alert("Failed to save task. Please try again.")
@@ -179,8 +182,12 @@ export default function InstructionTab() {
     try {
       const formData = new FormData()
       formData.append("user_id", getOrCreateUserId()) // Replace with actual user ID
-      formData.append("task_title", taskTitle)
-      instructionSteps.forEach((step) => formData.append("instructions", step.text))
+      if (selectedTaskId) {
+        formData.append("task_id", selectedTaskId)
+      } else {
+        formData.append("task_title", taskTitle)
+        instructionSteps.forEach((step) => formData.append("instructions", step.text))
+      }
 
       const response = await fetch(`${baseURL}/instruction/setup/`, {
         method: "POST",
