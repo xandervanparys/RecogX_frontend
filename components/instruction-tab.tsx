@@ -147,7 +147,6 @@ export default function InstructionTab() {
       setTasks(updatedTasks);
       const responseData = await response.json();
       if (!selectedTaskId) setSelectedTaskId(responseData.task.id);
-      console.log(`current task id: ${selectedTaskId}`);
     } catch (err) {
       console.error("Error saving task:", err);
       alert("Failed to save task. Please try again.");
