@@ -1,11 +1,11 @@
-"use client"
+"use client";
 
-import { useEffect, useState, useRef } from "react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { useEffect, useState, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Plus,
   X,
@@ -16,202 +16,252 @@ import {
   Trash2,
   Camera,
   CameraIcon,
-  RotateCcw
-} from "lucide-react"
+  RotateCcw,
+} from "lucide-react";
 
 interface Task {
-  id: string
-  title: string
-  steps: string[]
+  id: string;
+  title: string;
+  steps: InstructionStep[];
 }
 
 interface InstructionStep {
-  id: string
-  text: string
-  image?: string
+  id: string;
+  description: string;
+  image?: string;
 }
 
 interface ResponseItem {
-  id: string
-  timestamp: string
-  text?: string
-  image?: string
+  id: string;
+  timestamp: string;
+  text?: string;
+  image?: string;
 }
 
 export default function InstructionTab() {
-  const [taskTitle, setTaskTitle] = useState("")
-  const [instructionSteps, setInstructionSteps] = useState<InstructionStep[]>([{ id: "step-1", text: "" }])
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [isSubmittingTask, setIsSubmittingTask] = useState(false)
-  const [isSavingTask, setIsSavingTask] = useState(false)
-  const [isTasksOpen, setIsTasksOpen] = useState(false)
-  const [isTaskSubmitted, setIsTaskSubmitted] = useState(false)
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
-  const baseURL = "https://api.web-present.be"
+  const [taskTitle, setTaskTitle] = useState("");
+  const [instructionSteps, setInstructionSteps] = useState<InstructionStep[]>([
+    { id: "step-1", description: "" },
+  ]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isSubmittingTask, setIsSubmittingTask] = useState(false);
+  const [isSavingTask, setIsSavingTask] = useState(false);
+  const [isTasksOpen, setIsTasksOpen] = useState(false);
+  const [isTaskSubmitted, setIsTaskSubmitted] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const baseURL = "https://api.web-present.be";
 
   // Helper function to get or create user ID
   const getOrCreateUserId = () => {
-    let id = localStorage.getItem("user_id")
+    let id = localStorage.getItem("user_id");
     if (!id) {
-      id = crypto.randomUUID()
-      localStorage.setItem("user_id", id)
+      id = crypto.randomUUID();
+      localStorage.setItem("user_id", id);
     }
-    return id
-  }
+    return id;
+  };
 
   // Webcam states
-  const [isWebcamActive, setIsWebcamActive] = useState(false)
+  const [isWebcamActive, setIsWebcamActive] = useState(false);
   const [useFrontCamera, setUseFrontCamera] = useState(false);
-  const [isCapturing, setIsCapturing] = useState(false)
-  const webcamSettings = {width: 640, height: 480}
+  const [isCapturing, setIsCapturing] = useState(false);
+  const webcamSettings = { width: 640, height: 480 };
 
   // Response states (for tracking feedback from webcam submissions)
-  const [responses, setResponses] = useState<ResponseItem[]>([])
+  const [responses, setResponses] = useState<ResponseItem[]>([]);
 
   // Error and success states
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   // Refs for webcam and canvas
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Fetch all tasks from backend
   useEffect(() => {
     const fetchTasks = async () => {
       try {
-        const response = await fetch(`${baseURL}/instruction/tasks/`)
-        if (!response.ok) throw new Error("Failed to fetch tasks")
-        const data: Task[] = await response.json()
-        setTasks(data)
+        const response = await fetch(`${baseURL}/instruction/tasks/`);
+        if (!response.ok) throw new Error("Failed to fetch tasks");
+        const data: Task[] = await response.json();
+        setTasks(data);
       } catch (err) {
-        console.error("Error fetching tasks:", err)
+        console.error("Error fetching tasks:", err);
       }
-    }
-    fetchTasks()
-  }, [])
+    };
+    fetchTasks();
+  }, []);
 
   // Load a saved task into the creation fields
   const loadTask = (task: Task) => {
-    setTaskTitle(task.title)
-    setInstructionSteps(task.steps.map((step, index) => ({ id: `step-${index + 1}`, text: step })))
-    setSelectedTaskId(task.id)
-  }
+    console.log(task);
+    setTaskTitle(task.title);
+    setInstructionSteps(
+      task.steps.map((step) => ({
+        id: step.id,
+        description: step.description,
+      }))
+    );
+    setSelectedTaskId(task.id);
+  };
 
   // Save a task (user-created) to backend
   const saveTask = async () => {
     if (!taskTitle.trim()) {
-      alert("Please provide a task title")
-      return
+      alert("Please provide a task title");
+      return;
     }
-    if (instructionSteps.some((step) => !step.text.trim())) {
-      alert("All instruction steps must have text")
-      return
+    if (instructionSteps.some((step) => !step.description.trim())) {
+      alert("All instruction steps must have text");
+      return;
     }
 
-    setIsSavingTask(true)
+    let successMessage = "Task saved successfully!";
+    let failMessage = "Failed to save task";
+
+    setIsSavingTask(true);
     try {
-      const formData = new FormData()
-      formData.append("task_title", taskTitle)
-      instructionSteps.forEach((step) => formData.append("instructions", step.text))
+      const formData = new FormData();
+      if (selectedTaskId) {
+        formData.append("task_id", selectedTaskId);
+        successMessage = "Task updated successfully!";
+      }
+      formData.append("task_title", taskTitle);
+      instructionSteps.forEach((step) =>
+        formData.append("instructions", step.description)
+      );
 
       const response = await fetch(`${baseURL}/instruction/tasks/`, {
         method: "POST",
         body: formData,
-      })
-      if (!response.ok) throw new Error("Failed to save task")
-      alert("Task saved successfully!")
+      });
+      if (!response.ok) throw new Error(failMessage);
+
+      alert(successMessage);
 
       // Refresh tasks list
-      const updatedTasks = await fetch(`${baseURL}/instruction/tasks/`).then((res) => res.json())
-      setTasks(updatedTasks)
-      setSelectedTaskId(null)
+      const updatedTasks = await fetch(`${baseURL}/instruction/tasks/`).then(
+        (res) => res.json()
+      );
+      setTasks(updatedTasks);
+      const responseData = await response.json();
+      if (!selectedTaskId) setSelectedTaskId(responseData.task.id);
+      console.log(`current task id: ${selectedTaskId}`);
     } catch (err) {
-      console.error("Error saving task:", err)
-      alert("Failed to save task. Please try again.")
+      console.error("Error saving task:", err);
+      alert("Failed to save task. Please try again.");
     } finally {
-      setIsSavingTask(false)
+      setIsSavingTask(false);
     }
-  }
+  };
 
   // Delete a task
   const deleteTask = async (taskId: string) => {
-    const confirmDelete = confirm("Are you sure you want to delete this task?")
-    if (!confirmDelete) return
+    const confirmDelete = confirm("Are you sure you want to delete this task?");
+    if (!confirmDelete) return;
 
     try {
-      const response = await fetch(`${baseURL}/instruction/tasks/${taskId}`, { method: "DELETE" })
-      if (!response.ok) throw new Error("Failed to delete task")
+      const response = await fetch(`${baseURL}/instruction/tasks/${taskId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete task");
       // Remove from frontend
-      setTasks(tasks.filter((task) => task.id !== taskId))
+      setTasks(tasks.filter((task) => task.id !== taskId));
     } catch (err) {
-      console.error("Error deleting task:", err)
-      alert("Failed to delete task. Please try again.")
+      console.error("Error deleting task:", err);
+      alert("Failed to delete task. Please try again.");
     }
-  }
+  };
 
   // Manually add a new instruction step
   const addInstructionStep = () => {
-    setInstructionSteps([...instructionSteps, { id: `step-${instructionSteps.length + 1}`, text: "" }])
-  }
+    setInstructionSteps([
+      ...instructionSteps,
+      { id: `step-${instructionSteps.length + 1}`, description: "" },
+    ]);
+  };
 
   // Remove a step
   const removeInstructionStep = (id: string) => {
-    if (instructionSteps.length <= 1) return
-    setInstructionSteps(instructionSteps.filter((step) => step.id !== id))
-  }
+    if (instructionSteps.length <= 1) return;
+    setInstructionSteps(instructionSteps.filter((step) => step.id !== id));
+  };
 
   // Update step text
   const updateStepText = (id: string, text: string) => {
-    setInstructionSteps(instructionSteps.map((step) => (step.id === id ? { ...step, text } : step)))
-  }
+    setInstructionSteps(
+      instructionSteps.map((step) =>
+        step.id === id ? { ...step, description: text } : step
+      )
+    );
+  };
 
   // Submit task instructions (for tracking)
   const submitTaskInstructions = async () => {
     if (!taskTitle.trim()) {
-      alert("Please provide a task title")
-      return
+      alert("Please provide a task title");
+      return;
     }
-    if (instructionSteps.some((step) => !step.text.trim())) {
-      alert("All instruction steps must have text")
-      return
+    if (instructionSteps.some((step) => !step.description.trim())) {
+      alert("All instruction steps must have text");
+      return;
     }
 
-    setIsSubmittingTask(true)
+    setIsSubmittingTask(true);
     const startTime = performance.now();
     try {
-      const formData = new FormData()
-      formData.append("user_id", getOrCreateUserId()) // Replace with actual user ID
+      const formData = new FormData();
+      formData.append("user_id", getOrCreateUserId()); // Replace with actual user ID
       if (selectedTaskId) {
-        formData.append("task_id", selectedTaskId)
+        formData.append("task_id", selectedTaskId);
       } else {
-        formData.append("task_title", taskTitle)
-        instructionSteps.forEach((step) => formData.append("instructions", step.text))
+        formData.append("task_title", taskTitle);
+        instructionSteps.forEach((step) =>
+          formData.append("instructions", step.description)
+        );
       }
+
+      // Debug log to inspect what is being sent
+      console.log("📤 Submitting FormData:");
+      formData.forEach((value, key) => {
+        console.log(`${key}: ${value}`);
+      });
 
       const response = await fetch(`${baseURL}/instruction/setup/`, {
         method: "POST",
         body: formData,
-      })
+      });
 
-      if (!response.ok) throw new Error(`Server responded with ${response.status}`)
+      if (!response.ok)
+        throw new Error(`Server responded with ${response.status}`);
       const endTime = performance.now();
       const frontendDuration = endTime - startTime;
       const data = await response.json();
       if (data.open_ai_time) {
-        console.log(`📤 Instruction submission OpenAI time: ${(data.open_ai_time * 1000).toFixed(2)}ms`);
-        console.log(`⏱️ Round-trip time: ${frontendDuration.toFixed(2)}ms, OpenAI time (backend): ${(data.open_ai_time * 1000).toFixed(2)}ms`);
+        console.log(
+          `📤 Instruction submission OpenAI time: ${(
+            data.open_ai_time * 1000
+          ).toFixed(2)}ms`
+        );
+        console.log(
+          `⏱️ Round-trip time: ${frontendDuration.toFixed(
+            2
+          )}ms, OpenAI time (backend): ${(data.open_ai_time * 1000).toFixed(
+            2
+          )}ms`
+        );
       }
 
-      alert("Task instructions submitted successfully!")
-      setIsTaskSubmitted(true)
+      alert("Task instructions submitted successfully!");
+      setIsTaskSubmitted(true);
     } catch (err) {
-      console.error("Error submitting task instructions:", err)
-      alert("Failed to submit task instructions. Please try again.")
+      console.error("Error submitting task instructions:", err);
+      alert("Failed to submit task instructions. Please try again.");
     } finally {
-      setIsSubmittingTask(false)
+      setIsSubmittingTask(false);
     }
-  }
+  };
 
   // Webcam Functions
 
@@ -224,25 +274,25 @@ export default function InstructionTab() {
           width: { ideal: webcamSettings.width },
           height: { ideal: webcamSettings.height },
         },
-      })
+      });
       if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        setIsWebcamActive(true)
+        videoRef.current.srcObject = stream;
+        setIsWebcamActive(true);
       }
     } catch (err) {
-      setError("Could not access webcam. Please check permissions.")
+      setError("Could not access webcam. Please check permissions.");
     }
-  }
+  };
 
   // Stop webcam
   const stopWebcam = () => {
     if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream
-      stream.getTracks().forEach((track) => track.stop())
-      videoRef.current.srcObject = null
-      setIsWebcamActive(false)
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
+      setIsWebcamActive(false);
     }
-  }
+  };
 
   // Toggle Camera Button
   const toggleCamera = () => {
@@ -254,60 +304,88 @@ export default function InstructionTab() {
   // Capture and send image for instruction tracking
   const captureAndSendImage = async () => {
     if (!videoRef.current || !canvasRef.current) {
-      setError("Webcam is not active")
-      return
+      setError("Webcam is not active");
+      return;
     }
 
-    setIsCapturing(true)
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    const context = canvas.getContext("2d")
+    setIsCapturing(true);
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext("2d");
     if (!context) {
-      setError("Could not access canvas context")
-      setIsCapturing(false)
-      return
+      setError("Could not access canvas context");
+      setIsCapturing(false);
+      return;
     }
 
     // Draw current video frame on canvas
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     const startTime = performance.now();
     try {
       const blob = await new Promise<Blob>((resolve) => {
-        canvas.toBlob((blob) => blob && resolve(blob), "image/jpeg", 0.9)
-      })
+        canvas.toBlob((blob) => blob && resolve(blob), "image/jpeg", 0.9);
+      });
 
-      const formData = new FormData()
-      formData.append("user_id", getOrCreateUserId())
-      formData.append("frame", blob, "webcam-frame.jpg")
-      
-      const response = await fetch(`${baseURL}/instruction/track/`, { method: "POST", body: formData })
-      if (!response.ok) throw new Error(`Server responded with ${response.status}`)
+      const formData = new FormData();
+      formData.append("user_id", getOrCreateUserId());
+      formData.append("frame", blob, "webcam-frame.jpg");
+
+      const response = await fetch(`${baseURL}/instruction/track/`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok)
+        throw new Error(`Server responded with ${response.status}`);
       const endTime = performance.now();
       const frontendDuration = endTime - startTime;
       const data = await response.json();
-      console.log(`⏱️ Round-trip time: ${frontendDuration.toFixed(2)}ms, OpenAI time (backend): ${(data.open_ai_time * 1000).toFixed(2)}ms`);
-      setResponses([{ id: `response-${Date.now()}`, timestamp: new Date().toLocaleTimeString(), text: data.response }, ...responses])
+      console.log(
+        `⏱️ Round-trip time: ${frontendDuration.toFixed(
+          2
+        )}ms, OpenAI time (backend): ${(data.open_ai_time * 1000).toFixed(2)}ms`
+      );
+      setResponses([
+        {
+          id: `response-${Date.now()}`,
+          timestamp: new Date().toLocaleTimeString(),
+          text: data.response,
+        },
+        ...responses,
+      ]);
     } catch (err) {
-      setError("Failed to send image. Please try again.")
+      setError("Failed to send image. Please try again.");
     } finally {
-      setIsCapturing(false)
+      setIsCapturing(false);
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
       {/* Saved Tasks */}
       <Card className="p-6">
-        <div className="flex justify-between items-center cursor-pointer" onClick={() => setIsTasksOpen(!isTasksOpen)}>
+        <div
+          className="flex justify-between items-center cursor-pointer"
+          onClick={() => setIsTasksOpen(!isTasksOpen)}
+        >
           <h2 className="text-2xl font-bold">Saved Tasks</h2>
-          {isTasksOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+          {isTasksOpen ? (
+            <ChevronUp className="h-5 w-5" />
+          ) : (
+            <ChevronDown className="h-5 w-5" />
+          )}
         </div>
 
         {isTasksOpen && (
-          <ScrollArea className={`mt-4 transition-all duration-300 ease-in-out ${tasks.length > 6 ? "h-auto max-h-[300px]" : `h-[${Math.ceil(tasks.length / 6) * 50}px]`}`}>
+          <ScrollArea
+            className={`mt-4 transition-all duration-300 ease-in-out ${
+              tasks.length > 6
+                ? "h-auto max-h-[300px]"
+                : `h-[${Math.ceil(tasks.length / 6) * 50}px]`
+            }`}
+          >
             {tasks.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
                 {tasks.map((task) => (
@@ -334,7 +412,6 @@ export default function InstructionTab() {
         )}
       </Card>
 
-
       {/* New Task Creation Section */}
       <Card className="p-6">
         <h2 className="text-2xl font-bold mb-4">Create or Edit Task</h2>
@@ -348,26 +425,55 @@ export default function InstructionTab() {
           <div key={step.id} className="p-4 border rounded-lg mb-4">
             <div className="flex justify-between items-center mb-2">
               <h4 className="font-medium">Step {index + 1}</h4>
-              <Button variant="ghost" size="sm" onClick={() => removeInstructionStep(step.id)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => removeInstructionStep(step.id)}
+              >
                 <X className="h-4 w-4" />
               </Button>
             </div>
             <Textarea
-              value={step.text}
+              value={step.description}
               onChange={(e) => updateStepText(step.id, e.target.value)}
             />
           </div>
         ))}
-        <Button onClick={addInstructionStep} className="w-full mb-4">
-          <Plus className="h-4 w-4" /> Add Another Step
-        </Button>
-        <div className="flex flex-col gap-2">
-          <Button onClick={saveTask} disabled={isSavingTask} className="w-full">
-            <Save className="h-4 w-4" /> {isSavingTask ? "Saving..." : "Save Task"}
-          </Button>
-          <Button onClick={submitTaskInstructions} disabled={isSubmittingTask} className="w-full">
-            <Send className="h-4 w-4" /> {isSubmittingTask ? "Submitting..." : "Submit Task"}
-          </Button>
+        <div className="flex flex-col gap-8">
+          <div className="flex flex-col gap-2">
+            <Button onClick={addInstructionStep} className="w-full">
+              <Plus className="h-4 w-4" /> Add Another Step
+            </Button>
+            <Button
+              onClick={() => {
+                setTaskTitle("");
+                setSelectedTaskId(null);
+                setInstructionSteps([{ id: "step-1", description: "" }]);
+              }}
+              variant="outline"
+              className="w-full"
+            >
+              <RotateCcw className="h-4 w-4" /> Clear Task
+            </Button>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Button
+              onClick={saveTask}
+              disabled={isSavingTask}
+              className="w-full"
+            >
+              <Save className="h-4 w-4" />{" "}
+              {isSavingTask ? "Saving..." : "Save Task"}
+            </Button>
+            <Button
+              onClick={submitTaskInstructions}
+              disabled={isSubmittingTask}
+              className="w-full"
+            >
+              <Send className="h-4 w-4" />{" "}
+              {isSubmittingTask ? "Submitting..." : "Submit Task"}
+            </Button>
+          </div>
         </div>
       </Card>
 
@@ -379,18 +485,34 @@ export default function InstructionTab() {
             <h2 className="text-2xl font-bold mb-4">Task Execution</h2>
             <div className="flex flex-col md:flex-row md:justify-between items-center space-y-2 md:space-y-0">
               {!isWebcamActive ? (
-                <Button onClick={startWebcam} className="flex items-center gap-2 w-full md:w-auto">
+                <Button
+                  onClick={startWebcam}
+                  className="flex items-center gap-2 w-full md:w-auto"
+                >
                   <Camera className="h-4 w-4" /> Start Webcam
                 </Button>
               ) : (
                 <div className="flex flex-wrap gap-2 justify-center md:justify-start">
-                  <Button onClick={captureAndSendImage} disabled={isCapturing} className="flex items-center gap-2">
-                    <CameraIcon className="h-4 w-4" /> {isCapturing ? "Processing..." : "Capture & Send"}
+                  <Button
+                    onClick={captureAndSendImage}
+                    disabled={isCapturing}
+                    className="flex items-center gap-2"
+                  >
+                    <CameraIcon className="h-4 w-4" />{" "}
+                    {isCapturing ? "Processing..." : "Capture & Send"}
                   </Button>
-                  <Button onClick={stopWebcam} variant="outline" className="flex items-center gap-2">
+                  <Button
+                    onClick={stopWebcam}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
                     Stop Webcam
                   </Button>
-                  <Button onClick={toggleCamera} variant="outline" className="flex items-center gap-2">
+                  <Button
+                    onClick={toggleCamera}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
                     Switch Camera
                   </Button>
                 </div>
@@ -400,7 +522,13 @@ export default function InstructionTab() {
             {/* Webcam Feed */}
             <div className="flex-grow flex items-center justify-center">
               <div className="w-full h-auto aspect-video bg-black rounded-md border overflow-hidden">
-                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                />
               </div>
             </div>
           </Card>
@@ -411,7 +539,9 @@ export default function InstructionTab() {
             <ScrollArea className="flex-grow pr-4">
               {responses.length > 0 ? (
                 responses.map((response) => (
-                  <div key={response.id} className="p-4 border rounded-lg mb-2">{response.text}</div>
+                  <div key={response.id} className="p-4 border rounded-lg mb-2">
+                    {response.text}
+                  </div>
                 ))
               ) : (
                 <p className="text-muted-foreground">No responses yet.</p>
@@ -422,5 +552,5 @@ export default function InstructionTab() {
       )}
       <canvas ref={canvasRef} className="hidden" />
     </div>
-  )
+  );
 }
