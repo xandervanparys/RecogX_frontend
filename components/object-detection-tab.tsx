@@ -309,17 +309,17 @@ export default function ObjectDetectionTab() {
     <div>
       {/* Remove the backend URL input section and replace it with a simple message */}
       <div className="mb-6">
-        <div className="flex justify-between items-center">
-          <p className="text-sm text-muted-foreground">
+        <div className="flex justify-center items-center">
+          {/* <p className="text-sm text-muted-foreground">
             Using API: https://api.webpresent.be/yolo/detect/
-          </p>
+          </p> */}
           {!isStreaming ? (
             <Button onClick={startWebcam} className="flex items-center gap-2">
               <Play className="h-4 w-4" />
               Start Webcam
             </Button>
           ) : (
-            <div className="flex gap-2">
+            <div className="flex md:flex-row gap-2">
               <Button
                 onClick={toggleCamera}
                 variant="outline"
